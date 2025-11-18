@@ -1,0 +1,10 @@
+FROM apify/actor-python:3.11
+
+# Copy files
+COPY . ./
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Set the default command to run your Python main
+CMD ["python", "-m", "src.main"]
