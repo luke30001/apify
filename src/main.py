@@ -8,61 +8,57 @@ TWEETS_TO_COLLECT = 5
 
 
 async def main() -> None:
-    # Initialize Apify Actor (logging, KV store, dataset, etc.)
     async with Actor:
         Actor.log.info(f"Opening profile: {PROFILE_URL}")
 
         async with async_playwright() as p:
-            # Launch Chromium in headless mode
             browser = await p.chromium.launch(
-                headless=True,          # <— no Actor.configuration here
+                headless=True,
                 args=["--disable-gpu"],
             )
 
             context = await browser.new_context()
             page = await context.new_page()
 
-            # Go to Binance profile
             await page.goto(PROFILE_URL, wait_until="networkidle")
-
-            # Wait a bit for tweets to render
             await page.wait_for_timeout(5000)
 
-            # Scroll down a few times to ensure we have enough tweets
-            for _ in range(3):
-                await page.mouse.wheel(0, 1500)
+            # Scroll to load enough tweets
+            for _ in range(4):
+                await page.mouse.wheel(0, 2000)
                 await page.wait_for_timeout(1500)
 
             tweets = []
 
-            # Each tweet is an <article> element
+            # Prefer only real tweets: article elements that contain a <time> (filter out side cards)
             articles = await page.locator("article").all()
-            Actor.log.info(f"Found {len(articles)} article elements")
+            Actor.log.info(f"Found {len(articles)} article candidates")
 
             for article in articles:
-                # Tweet text: usually inside div[lang]
-                text_locator = article.locator("div[lang]").first
-                if await text_locator.count() == 0:
+                # Ensure this article has a time element (likely a tweet, not a random card)
+                time_locator = article.locator("time").first
+                if await time_locator.count() == 0:
                     continue
 
-                text = (await text_locator.inner_text()).strip()
-                if not text:
-                    continue
+                # 1) Preferred selector: official tweet text container
+                tweet_text_locator = article.locator("div[data-testid='tweetText']").first
+
+                # 2) Fallback: any text node with lang attribute
+                lang_text_locator = article.locator("div[lang]").first
+
+                text = ""
+
+                if await tweet_text_locator.count() > 0:
+                    text = (await tweet_text_locator.inner_text()).strip()
+                elif await lang_text_locator.count() > 0:
+                    text = (await lang_text_locator.inner_text()).strip()
 
                 # Timestamp
-                time_locator = article.locator("time").first
-                if await time_locator.count() > 0:
-                    time = await time_locator.get_attribute("datetime")
-                else:
-                    time = None
+                time = await time_locator.get_attribute("datetime")
 
-                # Tweet URL
+                # Tweet URL (status link)
                 link_locator = article.locator("a[href*='/status/']").first
-                if await link_locator.count() > 0:
-                    href = await link_locator.get_attribute("href")
-                else:
-                    href = None
-
+                href = await link_locator.get_attribute("href") if await link_locator.count() > 0 else None
                 if href and href.startswith("/"):
                     url = f"https://x.com{href}"
                 else:
@@ -78,7 +74,6 @@ async def main() -> None:
                 if len(tweets) >= TWEETS_TO_COLLECT:
                     break
 
-            # Save tweets to the default dataset
             for t in tweets:
                 await Actor.push_data(t)
 
