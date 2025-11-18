@@ -1,0 +1,10 @@
+{
+    "name": "binance-latest-tweets",
+    "version": "1.0",
+    "buildTag": "latest",
+    "env": null,
+    "defaultRunOptions": {
+      "build": "latest"
+    }
+  }
+  
