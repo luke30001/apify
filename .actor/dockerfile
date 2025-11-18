@@ -1,10 +1,13 @@
-FROM apify/actor-python:3.11
+FROM apify/actor-python-playwright:3.11-1.39.0
 
-# Copy files
-COPY . ./
-
-# Install Python dependencies
+# Install Python deps
+COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Set the default command to run your Python main
+# Copy source code
+COPY . ./
+
+# Run your actor (your main Python entry)
 CMD ["python", "-m", "src.main"]
+# or, if your file is just /src/main.py and you prefer direct call:
+# CMD ["python", "src/main.py"]
