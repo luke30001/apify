@@ -1,10 +1,11 @@
 {
-    "name": "binance-latest-tweets",
-    "version": "1.0",
-    "buildTag": "latest",
-    "env": null,
-    "defaultRunOptions": {
-      "build": "latest"
-    }
-  }
-  
+  "actorSpecification": 1,
+  "name": "binance-latest-tweets-python",
+  "title": "Latest 5 tweets from @binance",
+  "description": "Apify actor (Python + Playwright) that scrapes the latest 5 tweets from the Binance X/Twitter profile.",
+  "version": "0.1",
+  "buildTag": "latest",
+  "dockerfile": "./Dockerfile",
+  "readme": "./ACTOR.md",
+  "input": "./input_schema.json"
+}
