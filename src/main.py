@@ -8,36 +8,39 @@ TWEETS_TO_COLLECT = 5
 
 
 async def main() -> None:
-    # Actor context (handles config, storage, logging, etc.)
+    # Initialize Apify Actor (logging, KV store, dataset, etc.)
     async with Actor:
         Actor.log.info(f"Opening profile: {PROFILE_URL}")
 
         async with async_playwright() as p:
-            # Launch Chromium; Apify exposes headless flag via Actor.configuration
+            # Launch Chromium in headless mode
             browser = await p.chromium.launch(
-                headless=Actor.configuration.headless,
+                headless=True,          # <— no Actor.configuration here
                 args=["--disable-gpu"],
             )
+
             context = await browser.new_context()
             page = await context.new_page()
 
+            # Go to Binance profile
             await page.goto(PROFILE_URL, wait_until="networkidle")
-            # Give X/Twitter some time to render tweets
+
+            # Wait a bit for tweets to render
             await page.wait_for_timeout(5000)
 
-            # Scroll a bit to load more tweets
+            # Scroll down a few times to ensure we have enough tweets
             for _ in range(3):
                 await page.mouse.wheel(0, 1500)
                 await page.wait_for_timeout(1500)
 
             tweets = []
 
-            # Each tweet is typically an <article> element
+            # Each tweet is an <article> element
             articles = await page.locator("article").all()
             Actor.log.info(f"Found {len(articles)} article elements")
 
             for article in articles:
-                # Tweet text (main text node usually has lang attribute)
+                # Tweet text: usually inside div[lang]
                 text_locator = article.locator("div[lang]").first
                 if await text_locator.count() == 0:
                     continue
@@ -75,12 +78,11 @@ async def main() -> None:
                 if len(tweets) >= TWEETS_TO_COLLECT:
                     break
 
-            # Save to default dataset
+            # Save tweets to the default dataset
             for t in tweets:
                 await Actor.push_data(t)
 
             Actor.log.info(f"Pushed {len(tweets)} tweets to dataset")
-
             await browser.close()
 
 
